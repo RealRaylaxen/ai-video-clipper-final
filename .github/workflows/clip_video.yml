@@ -57,8 +57,7 @@ jobs:
             echo "COOKIES_AVAILABLE=false" >> $GITHUB_ENV
           fi
 
-      - name: Run video clipper and get Link
-        id: clipper
+      - name: Run video clipper
         env:
           VIDEO_URL: ${{ github.event.client_payload.video_url || github.inputs.video_url }}
           CLIP_START: ${{ github.event.client_payload.clip_start || github.inputs.clip_start || '0' }}
@@ -67,18 +66,23 @@ jobs:
           START_VAL="${CLIP_START:-0}"
           END_VAL="${CLIP_ENV:-30}"
           
-          # Run the updated script and extract the generated cloud download URL
-          OUTPUT_LOG=$(python main.py --url "$VIDEO_URL" --start "$START_VAL" --end "$END_VAL" --output-dir ./clips)
-          echo "$OUTPUT_LOG"
-          
-          DOWNLOAD_URL=$(echo "$OUTPUT_LOG" | grep -o 'https://bashupload.com[^ ]*' | head -n 1)
-          echo "FINAL_URL=$DOWNLOAD_URL" >> $GITHUB_ENV
-          echo "url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
+          python main.py \
+            --url "$VIDEO_URL" \
+            --start "$START_VAL" \
+            --end "$END_VAL" \
+            --output-dir ./clips
+            
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-clips
+          path: ./clips/
+          retention-days: 7
 
-      - name: Commit local backup to repository
+      - name: Commit and push clips to repository
         run: |
-          git config --local user.email "github-actions[bot]@://github.com"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          git add clips/ || true
-          git diff --staged --quiet || git commit -m "Backup video clip [skip ci]" || true
+          git add clips/
+          git diff --staged --quiet || git commit -m "Add processed video clips [skip ci]" || true
           git push || true
