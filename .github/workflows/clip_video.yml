@@ -1,0 +1,71 @@
+name: AI Video Clipper
+
+on:
+  repository_dispatch:
+    types: [clip_video]
+  workflow_dispatch:
+    inputs:
+      video_url:
+        description: 'Video URL to process'
+        required: true
+        type: string
+      clip_start:
+        description: 'Start time (seconds)'
+        required: false
+        default: '0'
+        type: string
+      clip_end:
+        description: 'End time (seconds)'
+        required: false
+        default: '30'
+        type: string
+
+jobs:
+  clip-video:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ffmpeg-python pillow
+
+      - name: Check FFmpeg
+        run: ffmpeg -version
+
+      - name: Run video clipper
+        env:
+          VIDEO_URL: ${{ github.event.client_payload.video_url || github.inputs.video_url }}
+          CLIP_START: ${{ github.event.client_payload.clip_start || github.inputs.clip_start }}
+          CLIP_END: ${{ github.event.client_payload.clip_end || github.inputs.clip_end }}
+        run: |
+          python main.py \
+            --url "$VIDEO_URL" \
+            --start "$CLIP_START" \
+            --end "$CLIP_END" \
+            --output-dir ./clips
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: video-clips
+          path: ./clips/
+          retention-days: 7
+
+      - name: Commit clips artifact
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add clips/
+          git diff --staged --quiet || git commit -m "Add video clips [skip ci]" || true
+          git push || true
+
+      - name: Create dispatch response
+        if: github.event_name == 'repository_dispatch'
+        run: |
+          echo "Clip processing complete"
