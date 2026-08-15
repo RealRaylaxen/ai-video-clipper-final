@@ -43,7 +43,8 @@ jobs:
           COOKIE_DATA: ${{ secrets.YT_COOKIES }}
         run: |
           if [ -n "$COOKIE_DATA" ]; then
-            echo "$COOKIE_DATA" > youtube_cookies.txt
+            # Saving it as cookies.txt which yt-dlp checks for automatically
+            echo "$COOKIE_DATA" > cookies.txt
             echo "COOKIES_AVAILABLE=true" >> $GITHUB_ENV
           else
             echo "COOKIES_AVAILABLE=false" >> $GITHUB_ENV
@@ -61,19 +62,18 @@ jobs:
           START_VAL="${CLIP_START:-0}"
           END_VAL="${CLIP_END:-30}"
           
-          # Append cookie arguments if verification data is present
-          COOKIE_ARG=""
+          # We pass the cookies file using standard yt-dlp environment overrides 
+          # instead of changing the python input command arguments directly.
           if [ "$COOKIES_AVAILABLE" = "true" ]; then
-            COOKIE_ARG="--cookies youtube_cookies.txt"
+            export YTDLP_COOKIES="cookies.txt"
           fi
           
           python main.py \
             --url "$VIDEO_URL" \
             --start "$START_VAL" \
             --end "$END_VAL" \
-            --output-dir ./clips \
-            $COOKIE_ARG
-
+            --output-dir ./clips
+            
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -83,7 +83,7 @@ jobs:
 
       - name: Commit clips artifact
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.email "github-actions[bot]@://github.com"
           git config --local user.name "github-actions[bot]"
           git add clips/
           git diff --staged --quiet || git commit -m "Add video clips [skip ci]" || true
