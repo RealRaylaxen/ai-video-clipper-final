@@ -43,8 +43,10 @@ jobs:
           COOKIE_DATA: ${{ secrets.YT_COOKIES }}
         run: |
           if [ -n "$COOKIE_DATA" ]; then
-            # Saving it as cookies.txt which yt-dlp checks for automatically
+            # Creating a global configuration file that yt-dlp reads automatically on every execution
+            mkdir -p ~/.config/yt-dlp
             echo "$COOKIE_DATA" > cookies.txt
+            echo "--cookies cookies.txt" > ~/.config/yt-dlp/config
             echo "COOKIES_AVAILABLE=true" >> $GITHUB_ENV
           else
             echo "COOKIES_AVAILABLE=false" >> $GITHUB_ENV
@@ -57,16 +59,10 @@ jobs:
         env:
           VIDEO_URL: ${{ github.event.client_payload.video_url || github.inputs.video_url }}
           CLIP_START: ${{ github.event.client_payload.clip_start || github.inputs.clip_start || '0' }}
-          CLIP_END: ${{ github.event.client_payload.clip_end || github.inputs.clip_end || '30' }}
+          CLIP_ENV: ${{ github.event.client_payload.clip_end || github.inputs.clip_end || '30' }}
         run: |
           START_VAL="${CLIP_START:-0}"
-          END_VAL="${CLIP_END:-30}"
-          
-          # We pass the cookies file using standard yt-dlp environment overrides 
-          # instead of changing the python input command arguments directly.
-          if [ "$COOKIES_AVAILABLE" = "true" ]; then
-            export YTDLP_COOKIES="cookies.txt"
-          fi
+          END_VAL="${CLIP_ENV:-30}"
           
           python main.py \
             --url "$VIDEO_URL" \
@@ -83,7 +79,7 @@ jobs:
 
       - name: Commit clips artifact
         run: |
-          git config --local user.email "github-actions[bot]@://github.com"
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add clips/
           git diff --staged --quiet || git commit -m "Add video clips [skip ci]" || true
