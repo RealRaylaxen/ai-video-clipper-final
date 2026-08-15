@@ -33,20 +33,28 @@ jobs:
       - name: Setup System FFmpeg Binary
         uses: federicocarboni/setup-ffmpeg@v3
 
-      - name: Install Python dependencies
+      - name: Setup Node.js Runtime (For YouTube EJS Challenges)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install Python and JS Scraper Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ffmpeg-python pillow yt-dlp
+          # Installing yt-dlp with [default] ensures the yt-dlp-ejs solver is bundled
+          pip install ffmpeg-python pillow "yt-dlp[default]"
 
       - name: Authenticate YouTube Session
         env:
           COOKIE_DATA: ${{ secrets.YT_COOKIES }}
         run: |
           if [ -n "$COOKIE_DATA" ]; then
-            # Creating a global configuration file that yt-dlp reads automatically on every execution
             mkdir -p ~/.config/yt-dlp
             echo "$COOKIE_DATA" > cookies.txt
+            
+            # Tell yt-dlp to read cookies AND use our Node runtime for challenges
             echo "--cookies cookies.txt" > ~/.config/yt-dlp/config
+            echo "--js-runtimes node" >> ~/.config/yt-dlp/config
             echo "COOKIES_AVAILABLE=true" >> $GITHUB_ENV
           else
             echo "COOKIES_AVAILABLE=false" >> $GITHUB_ENV
