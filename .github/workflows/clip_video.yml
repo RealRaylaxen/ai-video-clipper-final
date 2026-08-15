@@ -31,9 +31,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup System FFmpeg Binary
-        uses: federicocarboni/setup-ffmpeg@v3
+        uses: wswoodruff/setup-ffmpeg@v3
+        with:
+          ffmpeg-version: 'latest'
 
-      - name: Setup Node.js Runtime (For YouTube EJS Challenges)
+      - name: Setup Node.js Runtime (For YouTube Challenges)
         uses: actions/setup-node@v4
         with:
           node-version: '22'
@@ -41,7 +43,6 @@ jobs:
       - name: Install Python and JS Scraper Dependencies
         run: |
           python -m pip install --upgrade pip
-          # Installing yt-dlp with [default] ensures the yt-dlp-ejs solver is bundled
           pip install ffmpeg-python pillow "yt-dlp[default]"
 
       - name: Authenticate YouTube Session
@@ -51,17 +52,12 @@ jobs:
           if [ -n "$COOKIE_DATA" ]; then
             mkdir -p ~/.config/yt-dlp
             echo "$COOKIE_DATA" > cookies.txt
-            
-            # Tell yt-dlp to read cookies AND use our Node runtime for challenges
             echo "--cookies cookies.txt" > ~/.config/yt-dlp/config
             echo "--js-runtimes node" >> ~/.config/yt-dlp/config
             echo "COOKIES_AVAILABLE=true" >> $GITHUB_ENV
           else
             echo "COOKIES_AVAILABLE=false" >> $GITHUB_ENV
           fi
-
-      - name: Check FFmpeg
-        run: ffmpeg -version
 
       - name: Run video clipper
         env:
@@ -87,7 +83,7 @@ jobs:
 
       - name: Commit clips artifact
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.email "github-actions[bot]@://github.com"
           git config --local user.name "github-actions[bot]"
           git add clips/
           git diff --staged --quiet || git commit -m "Add video clips [skip ci]" || true
